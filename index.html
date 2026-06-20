@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mystic Farm Canvas</title>
+<link rel="manifest" href="manifest.json">
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: #17251d;
+    color: #f8f1d8;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.game-shell {
+    width: min(1200px, 96vw);
+    margin: 0 auto;
+    padding: 18px 0 28px;
+}
+
+.topbar,
+.panel,
+.controls {
+    border: 3px solid #6f8752;
+    border-radius: 8px;
+    background:
+        linear-gradient(135deg, rgba(255,255,255,0.06), transparent 38%),
+        #223729;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.18), inset 0 0 0 2px rgba(240,213,104,0.08);
+}
+
+.topbar {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
+    padding: 8px;
+    font-weight: 700;
+    text-align: center;
+    box-shadow: inset 0 0 0 2px rgba(240, 213, 104, 0.14);
+}
+
+.hud-card {
+    min-height: 48px;
+    display: grid;
+    place-items: center;
+    padding: 6px 8px;
+    border: 2px solid #78945f;
+    border-radius: 4px;
+    background:
+        linear-gradient(135deg, rgba(255,255,255,0.08), transparent 38%),
+        #17251d;
+    color: #f8f1d8;
+    text-shadow: 0 2px 0 #192117;
+}
+
+.hud-card strong {
+    font-size: 15px;
+}
+
+.layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 14px;
+    margin-top: 14px;
+}
+
+.canvas-wrap {
+    position: relative;
+}
+
+#game {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    display: block;
+    border: 2px solid #5f7d55;
+    border-radius: 8px;
+    background: #2e6940;
+    image-rendering: pixelated;
+}
+
+.debug {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    display: none;
+    min-width: 165px;
+    padding: 8px 10px;
+    border: 2px solid rgba(248, 241, 216, 0.3);
+    border-radius: 6px;
+    background: rgba(23, 37, 29, 0.85);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.45;
+    pointer-events: none;
+}
+
+.debug.visible {
+    display: block;
+}
+
+.panel {
+    padding: 12px;
+}
+
+.panel h2 {
+    margin: 0 0 10px;
+    font-size: 20px;
+}
+
+.stack {
+    display: grid;
+    gap: 14px;
+    max-height: calc(100vh - 132px);
+    overflow: auto;
+}
+
+.inventory {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.item {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    border: 2px solid #8b6b3f;
+    border-radius: 6px;
+    background:
+        linear-gradient(135deg, rgba(255,255,255,0.12), transparent 45%),
+        #3b2f24;
+    font-size: 13px;
+    font-weight: 700;
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,0.22);
+}
+
+.tool-row,
+.action-row,
+.slot-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+button,
+select {
+    min-height: 38px;
+    border: 2px solid #5f7d55;
+    border-radius: 8px;
+    background:
+        linear-gradient(135deg, rgba(255,255,255,0.1), transparent 42%),
+        #304936;
+    color: #f8f1d8;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+}
+
+button {
+    padding: 8px 10px;
+}
+
+select {
+    padding: 0 10px;
+}
+
+button.selected {
+    border-color: #f0d568;
+    background: #596b3d;
+}
+
+.controls {
+    position: sticky;
+    left: auto;
+    bottom: 0;
+    display: grid;
+    gap: 8px;
+    width: min(940px, 96vw);
+    margin: 14px auto 0;
+    padding: 10px;
+    transform: none;
+    z-index: 10;
+}
+
+.mobile-pad {
+    display: none;
+    grid-template-columns: repeat(3, 48px);
+    gap: 6px;
+    justify-content: center;
+}
+
+.mobile-pad button {
+    width: 48px;
+    height: 48px;
+    padding: 0;
+}
+
+.dialogue {
+    position: fixed;
+    left: 50%;
+    bottom: 130px;
+    width: min(560px, 92vw);
+    padding: 16px;
+    transform: translateX(-50%);
+    border: 3px solid #f0d568;
+    border-radius: 8px;
+    background: #223729;
+    color: #f8f1d8;
+    display: none;
+    z-index: 20;
+}
+
+.dialogue.visible {
+    display: block;
+}
+
+.dialogue-title {
+    margin-bottom: 8px;
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.hint {
+    color: #d8cda2;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.loading-screen {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: #17251d;
+    color: #f8f1d8;
+    z-index: 100;
+    transition: opacity 240ms ease;
+}
+
+.loading-screen.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.loading-screen .meter-fill {
+    width: 0;
+    transition: width 300ms ease;
+}
+
+.loading-card {
+    width: min(360px, 86vw);
+    padding: 22px;
+    border: 3px solid #f0d568;
+    border-radius: 8px;
+    background: #223729;
+    text-align: center;
+}
+
+.toast-stack {
+    position: fixed;
+    right: 18px;
+    top: 82px;
+    display: grid;
+    gap: 8px;
+    z-index: 40;
+}
+
+.toast {
+    min-width: 220px;
+    padding: 10px 12px;
+    border: 2px solid #5f7d55;
+    border-radius: 8px;
+    background: #223729;
+    color: #f8f1d8;
+    font-weight: 800;
+    transform: translateX(120%);
+    animation: toast-in 2.8s ease forwards;
+}
+
+@keyframes toast-in {
+    0% { opacity: 0; transform: translateX(120%); }
+    12%, 82% { opacity: 1; transform: translateX(0); }
+    100% { opacity: 0; transform: translateX(120%); }
+}
+
+body.color-blind #game {
+    filter: saturate(0.72) contrast(1.18);
+}
+
+body.large-ui {
+    font-size: 18px;
+}
+
+.screen-overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    place-items: center;
+    background:
+        linear-gradient(rgba(23, 37, 29, 0.7), rgba(23, 37, 29, 0.88)),
+        radial-gradient(circle at 50% 35%, rgba(240, 213, 104, 0.16), transparent 34%);
+    z-index: 90;
+    animation: menu-drift 14s ease-in-out infinite alternate;
+}
+
+.screen-overlay.visible {
+    display: grid;
+}
+
+.menu-card {
+    width: min(420px, 88vw);
+    display: grid;
+    gap: 12px;
+    padding: 22px;
+    border: 3px solid #f0d568;
+    border-radius: 8px;
+    background: #223729;
+    box-shadow: 0 18px 0 rgba(0, 0, 0, 0.22), inset 0 0 0 2px rgba(255,255,255,0.06);
+    text-align: center;
+}
+
+.menu-card h1,
+.menu-card h2 {
+    margin: 0;
+    text-shadow: 0 3px 0 #17251d;
+}
+
+.version {
+    margin: -4px 0 8px;
+    color: #d8cda2;
+    font-weight: 800;
+}
+
+@keyframes menu-drift {
+    from { background-position: 0 0, 50% 35%; }
+    to { background-position: 0 0, 54% 42%; }
+}
+
+.screenshot-mode .topbar,
+.screenshot-mode .stack,
+.screenshot-mode .controls,
+.screenshot-mode .toast-stack,
+.screenshot-mode .debug,
+.screenshot-mode .dialogue,
+.screenshot-mode .developer-panel,
+.cinematic-mode .topbar,
+.cinematic-mode .stack,
+.cinematic-mode .controls,
+.cinematic-mode .toast-stack,
+.cinematic-mode .debug,
+.cinematic-mode .dialogue,
+.cinematic-mode .developer-panel {
+    display: none !important;
+}
+
+.screenshot-mode .layout,
+.cinematic-mode .layout {
+    display: block;
+}
+
+.screenshot-mode .game-shell,
+.cinematic-mode .game-shell {
+    width: 100vw;
+    padding: 0;
+}
+
+.screenshot-mode #game,
+.cinematic-mode #game {
+    border: 0;
+    border-radius: 0;
+}
+
+button:hover,
+select:hover,
+.item:hover {
+    border-color: #f0d568;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 0 rgba(0, 0, 0, 0.22);
+}
+
+.settings-grid {
+    display: grid;
+    gap: 10px;
+}
+
+.settings-grid label {
+    display: grid;
+    gap: 4px;
+    font-weight: 700;
+}
+
+.developer-panel {
+    position: fixed;
+    left: 18px;
+    bottom: 18px;
+    display: none;
+    width: 260px;
+    padding: 12px;
+    border: 2px solid #f0d568;
+    border-radius: 8px;
+    background: rgba(23, 37, 29, 0.94);
+    color: #f8f1d8;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.5;
+    z-index: 60;
+}
+
+.developer-panel.visible {
+    display: block;
+}
+
+.developer-panel h2 {
+    margin: 0 0 8px;
+    font-size: 16px;
+}
+
+.meter {
+    height: 14px;
+    overflow: hidden;
+    border: 1px solid #5f7d55;
+    border-radius: 999px;
+    background: #17251d;
+}
+
+.meter-fill {
+    width: 100%;
+    height: 100%;
+    background: #f0d568;
+}
+
+@media (max-width: 860px) {
+    .topbar {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .layout {
+        grid-template-columns: 1fr;
+    }
+
+    .mobile-pad {
+        display: grid;
+    }
+}
+</style>
+</head>
+<body>
+<section id="titleScreen" class="screen-overlay visible">
+    <div class="menu-card">
+        <h1>Mystic Farm</h1>
+        <div class="version">v1.0</div>
+        <button id="playBtn" type="button">Play</button>
+        <button id="titleLoadBtn" type="button">Load Game</button>
+        <button id="titleSettingsBtn" type="button">Settings</button>
+        <button id="titleCreditsBtn" type="button">Credits</button>
+        <button id="titleAboutBtn" type="button">About</button>
+    </div>
+</section>
+
+<section id="pauseScreen" class="screen-overlay">
+    <div class="menu-card">
+        <h2>Paused</h2>
+        <button id="resumeBtn" type="button">Resume</button>
+        <button id="pauseSettingsBtn" type="button">Settings</button>
+        <button id="pauseSaveBtn" type="button">Save</button>
+        <button id="pauseTitleBtn" type="button">Title Screen</button>
+    </div>
+</section>
+
+<div id="loadingScreen" class="loading-screen">
+    <div class="loading-card">
+        <h1>Pixel Farm Valley</h1>
+        <p>Loading...</p>
+        <div class="meter"><div id="loadingFill" class="meter-fill"></div></div>
+        <p id="loadingText" class="hint">0 / 0 assets</p>
+    </div>
+</div>
+
+<main class="game-shell">
+    <header class="topbar">
+        <div class="hud-card"><strong><span id="seasonIcon">🌸</span> <span id="season">Spring</span> <span id="day">1</span></strong></div>
+        <div class="hud-card"><strong><span id="weatherIcon">☀</span> <span id="weather">Sunny</span></strong></div>
+        <div class="hud-card"><strong>🕘 <span id="timeHud">6:00 AM</span></strong></div>
+        <div class="hud-card"><strong>⚡ <span id="energy">100</span></strong></div>
+        <div class="hud-card"><strong>❤️ <span id="health">100</span></strong></div>
+        <div class="hud-card"><strong>💰 <span id="gold">500</span>g</strong></div>
+    </header>
+
+    <section class="layout">
+        <div class="canvas-wrap">
+            <canvas id="game"></canvas>
+            <div id="debug" class="debug"></div>
+        </div>
+
+        <aside class="stack">
+            <section class="panel">
+                <h2>Inventory</h2>
+                <div id="inventory" class="inventory"></div>
+            </section>
+
+            <section class="panel">
+                <h2>Systems</h2>
+                <div id="systems" class="hint"></div>
+            </section>
+
+            <section class="panel">
+                <h2>Save Slots</h2>
+                <div class="slot-row">
+                    <button data-save="1">Save 1</button>
+                    <button data-load="1">Load 1</button>
+                    <button data-save="2">Save 2</button>
+                    <button data-load="2">Load 2</button>
+                    <button data-save="3">Save 3</button>
+                    <button data-load="3">Load 3</button>
+                </div>
+            </section>
+        </aside>
+    </section>
+</main>
+
+<section class="controls">
+    <div id="tools" class="tool-row"></div>
+    <div class="action-row">
+        <select id="seedSelect"></select>
+        <button id="sleepBtn" type="button">Sleep</button>
+        <button id="shopBtn" type="button">Buy Seeds</button>
+        <button id="shipBtn" type="button">Ship Goods</button>
+        <button id="cookBtn" type="button">Cook</button>
+        <button id="talentBtn" type="button">Talents</button>
+        <button id="buildBtn" type="button">Build</button>
+        <button id="dashBtn" type="button">Dashboard</button>
+        <button id="achieveBtn" type="button">Achievements</button>
+        <button id="settingsBtn" type="button">Settings</button>
+        <button id="coopBtn" type="button">Co-op Demo</button>
+    </div>
+    <div class="mobile-pad" aria-label="Mobile controls">
+        <span></span><button data-touch="w">Up</button><span></span>
+        <button data-touch="a">Left</button><button data-action="interact">E</button><button data-touch="d">Right</button>
+        <span></span><button data-touch="s">Down</button><span></span>
+    </div>
+</section>
+
+<section id="dialogue" class="dialogue">
+    <div id="dialogueTitle" class="dialogue-title"></div>
+    <div id="dialogueText"></div>
+    <div id="dialogueActions" class="action-row" style="margin-top:12px"></div>
+</section>
+
+<div id="toastStack" class="toast-stack" aria-live="polite"></div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
+
